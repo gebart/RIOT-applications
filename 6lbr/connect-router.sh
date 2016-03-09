@@ -23,6 +23,12 @@ remove_tap() {
 cleanup() {
     echo "Cleaning up..."
     remove_tap
+    kill $UHCPD_PID
+}
+
+start_uhcpd() {
+    ${UHCPD} ${TAP_NAME} ${ROUTABLE_PREFIX}/64 > /dev/null &
+    UHCPD_PID=$!
 }
 
 if [ $# != 3 ]; then
@@ -43,4 +49,5 @@ ETHOS_DEVICE_LL_IP=${LINKLOCAL_PREFIX}${DEVICE_IP_SUFFIX}
 ETHOS_HOST_ROUTABLE_IP=${ROUTABLE_PREFIX}${HOST_IP_SUFFIX}
 
 create_tap
+start_uhcpd
 ${ETHOS} ${TAP_NAME} ${PORT_DEV}

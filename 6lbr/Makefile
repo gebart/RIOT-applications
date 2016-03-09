@@ -69,6 +69,10 @@ USEMODULE += shell
 USEMODULE += shell_commands
 USEMODULE += ps
 
+# For UHCP
+USEMODULE += gnrc_conn_udp
+USEMODULE += fmt
+
 # Add RPL support (a mesh routing protocol)
 USEMODULE += gnrc_rpl
 
@@ -76,9 +80,7 @@ USEMODULE += gnrc_rpl
 # which is not needed in a production environment but helps in the
 # development process:
 CFLAGS += -DDEVELHELP
-
-# Pass our chosen prefix to the build
-CFLAGS += '-DROUTABLE_PREFIX="$(ROUTABLE_PREFIX)"'
+CFLAGS += -DUHCP_CLIENT
 
 # Change this to 0 show compiler invocation lines by default:
 QUIET ?= 1
@@ -89,12 +91,19 @@ ifeq (,$(PORT))
   $(warning PORT unspecified)
 endif
 
-ETHOS_PROGRAM := $(RIOTBASE)/dist/tools/ethos/ethos
+ETHOS_DIR := $(RIOTBASE)/dist/tools/ethos
+ETHOS_PROGRAM := $(ETHOS_DIR)/ethos
+UHCPD_DIR := $(RIOTBASE)/dist/tools/uhcpd
+UHCPD_PROGRAM := $(UHCPD_DIR)/bin/uhcpd
 
 .PHONY: $(ETHOS_PROGRAM)
+.PHONY: $(UHCPD_PROGRAM)
 
 $(ETHOS_PROGRAM):
-	$(MAKE) -C $(dir $(ETHOS_PROGRAM)) $(notdir $(ETHOS_PROGRAM))
+	$(MAKE) -C $(ETHOS_DIR)
+
+$(UHCPD_PROGRAM):
+	$(MAKE) -C $(UHCPD_DIR)
 
 connect-router: $(RIOTBASE)/dist/tools/ethos/ethos
-	sudo sh -c 'ETHOS=${ETHOS_PROGRAM} $(CURDIR)/connect-router.sh $(PORT) $(TAP_NAME) $(ROUTABLE_PREFIX)'
+	sudo sh -c 'ETHOS=${ETHOS_PROGRAM} UHCPD=${UHCPD_PROGRAM} $(CURDIR)/connect-router.sh $(PORT) $(TAP_NAME) $(ROUTABLE_PREFIX)'
