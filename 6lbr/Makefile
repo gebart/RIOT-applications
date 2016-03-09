@@ -7,6 +7,11 @@ BOARD ?= mulle
 # This has to be the absolute path to the RIOT base directory:
 RIOTBASE ?= $(CURDIR)/../../RIOT
 
+# Name of virtual ethernet TAP interface
+TAP_NAME ?= riot0
+
+ROUTABLE_PREFIX ?= fdfd::
+
 BOARD_INSUFFICIENT_MEMORY := airfy-beacon msb-430 msb-430h pca10000 pca10005 \
                              nrf51dongle nrf6310 nucleo-f103 nucleo-f334 \
                              spark-core stm32f0discovery telosb \
@@ -72,7 +77,24 @@ USEMODULE += gnrc_rpl
 # development process:
 CFLAGS += -DDEVELHELP
 
+# Pass our chosen prefix to the build
+CFLAGS += '-DROUTABLE_PREFIX="$(ROUTABLE_PREFIX)"'
+
 # Change this to 0 show compiler invocation lines by default:
 QUIET ?= 1
 
 include $(RIOTBASE)/Makefile.include
+
+ifeq (,$(PORT))
+  $(warning PORT unspecified)
+endif
+
+ETHOS_PROGRAM := $(RIOTBASE)/dist/tools/ethos/ethos
+
+.PHONY: $(ETHOS_PROGRAM)
+
+$(ETHOS_PROGRAM):
+	$(MAKE) -C $(dir $(ETHOS_PROGRAM)) $(notdir $(ETHOS_PROGRAM))
+
+connect-router: $(RIOTBASE)/dist/tools/ethos/ethos
+	sudo sh -c 'ETHOS=${ETHOS_PROGRAM} $(CURDIR)/connect-router.sh $(PORT) $(TAP_NAME) $(ROUTABLE_PREFIX)'
