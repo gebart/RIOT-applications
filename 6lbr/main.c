@@ -85,9 +85,13 @@ static void set_interface_roles(void)
 
 static ipv6_addr_t _current_prefix;
 
-void uhcp_handle_prefix(uint8_t *new_prefix, uint8_t prefix_len, uint16_t lifetime, uint8_t *src, uhcp_iface_t iface)
+void uhcp_handle_prefix(uint8_t *buf, uint8_t prefix_len, uint16_t lifetime, uint8_t *src, uhcp_iface_t iface)
 {
     eui64_t iid;
+    ipv6_addr_t new_prefix;
+
+    memcpy(&new_prefix, buf, sizeof(ipv6_addr_t));
+
     if (!gnrc_wireless_interface) {
         puts("uhcp_handle_prefix(): received prefix, but don't know any wireless interface");
         return;
@@ -100,40 +104,40 @@ void uhcp_handle_prefix(uint8_t *new_prefix, uint8_t prefix_len, uint16_t lifeti
 
     if (gnrc_netapi_get(gnrc_wireless_interface, NETOPT_IPV6_IID, 0, &iid,
                         sizeof(eui64_t)) >= 0) {
-        ipv6_addr_set_aiid((ipv6_addr_t*)new_prefix, iid.uint8);
+        ipv6_addr_set_aiid(&new_prefix, iid.uint8);
     }
     else {
         puts("uhcp_handle_prefix(): cannot get IID of wireless interface");
         return;
     }
 
-    if (ipv6_addr_equal(&_current_prefix, (ipv6_addr_t*)new_prefix)) {
+    if (ipv6_addr_equal(&_current_prefix, &new_prefix)) {
         puts("uhcp_handle_prefix(): got same prefix again");
         return;
     }
 
-    gnrc_ipv6_netif_add_addr(gnrc_wireless_interface, (ipv6_addr_t*)new_prefix, 64,
+    gnrc_ipv6_netif_add_addr(gnrc_wireless_interface, &new_prefix, 64,
                              GNRC_IPV6_NETIF_ADDR_FLAGS_UNICAST |
                              GNRC_IPV6_NETIF_ADDR_FLAGS_NDP_AUTO);
 
     gnrc_ipv6_netif_remove_addr(gnrc_wireless_interface, &_current_prefix);
     print_str("uhcp_handle_prefix(): configured new prefix ");
-    ipv6_addr_print((ipv6_addr_t*)new_prefix);
+    ipv6_addr_print(&new_prefix);
     puts("/64");
 
     puts("Starting RPL...");
     gnrc_rpl_init(gnrc_wireless_interface);
     gnrc_rpl_instance_t *inst;
     /* Use fixed instance number 0 */
-    inst = gnrc_rpl_root_init(0, (ipv6_addr_t*)new_prefix, false, false);
+    inst = gnrc_rpl_root_init(0, &new_prefix, false, false);
     if (inst == NULL) {
         print_str("uhcp_handle_prefix(): error initializing DODAG root ");
-        ipv6_addr_print((ipv6_addr_t*)new_prefix);
+        ipv6_addr_print(&new_prefix);
         puts("");
     }
 
-    ipv6_addr_set_iid((ipv6_addr_t*)new_prefix, 2ull);
-    gnrc_ipv6_netif_add_addr(gnrc_border_interface, (ipv6_addr_t*)new_prefix, 128,
+    ipv6_addr_set_iid(&new_prefix, 2ull);
+    gnrc_ipv6_netif_add_addr(gnrc_border_interface, &new_prefix, 128,
                              GNRC_IPV6_NETIF_ADDR_FLAGS_UNICAST |
                              GNRC_IPV6_NETIF_ADDR_FLAGS_NDP_AUTO);
 
@@ -146,7 +150,8 @@ void uhcp_handle_prefix(uint8_t *new_prefix, uint8_t prefix_len, uint16_t lifeti
         gnrc_ipv6_netif_remove_addr(gnrc_border_interface, &_current_prefix);
     }
 
-    memcpy(&_current_prefix, new_prefix, 16);
+    ipv6_addr_set_aiid(&new_prefix, iid.uint8);
+    memcpy(&_current_prefix, &new_prefix, sizeof(ipv6_addr_t));
 }
 
 extern void uhcp_client(uhcp_iface_t iface);
